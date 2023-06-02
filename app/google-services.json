@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "906187893255",
+    "project_id": "mobileproject-492b7",
+    "storage_bucket": "mobileproject-492b7.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:906187893255:android:12b59bc61fe812980598a2",
+        "android_client_info": {
+          "package_name": "com.inhatc.project_mobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDHmqZQder2Fi97jgPpB4uFCbEKRhZ8Rv8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
