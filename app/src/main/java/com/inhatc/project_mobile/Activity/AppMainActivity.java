@@ -1,12 +1,14 @@
-package com.inhatc.project_mobile;
+package com.inhatc.project_mobile.Activity;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.annotation.SuppressLint;
+import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
@@ -21,11 +23,14 @@ import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
+import com.inhatc.project_mobile.R;
+import com.inhatc.project_mobile.User;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 public class AppMainActivity extends AppCompatActivity implements View.OnClickListener{
 
@@ -41,9 +46,11 @@ public class AppMainActivity extends AppCompatActivity implements View.OnClickLi
     private Button btnFriInsert;
     private TextView txtSearchEmail;
     private TextView txtSearchName;
-
+    private ListView roomList;
     private String loginUID;
-
+    private String loginName;
+    private List<User> tempList;
+    private String roomName;
     @SuppressLint("MissingInflatedId")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -57,7 +64,8 @@ public class AppMainActivity extends AppCompatActivity implements View.OnClickLi
         btnFriInsert.setOnClickListener(this);
         txtSearchName = findViewById(R.id.txtSearchName);
         txtSearchEmail = findViewById(R.id.txtSearchEmail);
-
+        userList = findViewById(R.id.lstUser);
+        roomList = findViewById(R.id.lstRoom);
 
         tabHost = (TabHost)findViewById(R.id.tabhost);
         tabHost.setup();
@@ -74,8 +82,6 @@ public class AppMainActivity extends AppCompatActivity implements View.OnClickLi
         tabHost.setCurrentTab(0);
         mFirebase = FirebaseDatabase.getInstance();
 
-        userList = findViewById(R.id.lstUser);
-
         Bundle extras = getIntent().getExtras();
         if (extras != null) {
             // 전달된 데이터 가져오기
@@ -84,7 +90,16 @@ public class AppMainActivity extends AppCompatActivity implements View.OnClickLi
 
         //유저 목록 출력
         getUserList();
+
+        userList.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                roomName = tempList.get(position).getName();
+                isChatRoom(tempList.get(position).getUid());
+            }
+        });
     }
+
 
     @Override
     public void onClick(View v){
@@ -96,6 +111,50 @@ public class AppMainActivity extends AppCompatActivity implements View.OnClickLi
         }
     }
 
+    public void goChatRoom(String otherUID, String roomKey){
+        Intent chatIntent = new Intent(AppMainActivity.this, ChatActivity.class);
+        chatIntent.putExtra("loginUID", loginUID);
+        chatIntent.putExtra("otherUID", otherUID);
+        chatIntent.putExtra("roomKey", roomKey);
+        chatIntent.putExtra("roomName", roomName);
+        startActivity(chatIntent);
+    }
+    public void isChatRoom(String otherUID){
+        mDatabase = mFirebase.getReference("chatRoom");
+        mDatabase.get().addOnCompleteListener(new OnCompleteListener<DataSnapshot>() {
+            @Override
+            public void onComplete(@NonNull Task<DataSnapshot> task) {
+                if(!task.isSuccessful()){
+                    Log.e("isChatRoom() :", "DB 연동실패");
+                }else{
+                    String roomKey;
+                    HashMap<String, Object> map = (HashMap<String, Object>) task.getResult().child("chatRooms").getValue();
+                    /*
+                        DB 구조
+                        chatRoom
+                            chatRooms
+                                users@loginUID@otherUID:true
+                     */
+
+                    // 나랑 상대방이 포함된 방이 있는지 찾는다.
+                    if(map.containsKey("users@"+loginUID+"@"+otherUID)){
+                        roomKey = (String) map.get("users@"+loginUID+"@"+otherUID);
+                    }else if(map.containsKey("users@"+otherUID+"@"+loginUID)){
+                        roomKey = (String) map.get("users@"+otherUID+"@"+loginUID);
+                    }else{
+                        // 없으면 생성
+                        UUID uid = UUID.randomUUID();
+                        Map<String, Object> chatUidSet = new HashMap<>();
+                        roomKey = uid.toString();
+                        chatUidSet.put("users@"+loginUID+"@"+otherUID,roomKey);
+                        mDatabase.child("chatRooms").updateChildren(chatUidSet);
+                    }
+                    // 해당 채팅방으로 이동하기 위한 메소드
+                    goChatRoom(otherUID, roomKey);
+                }
+            }
+        });
+    }
 
     //email을 uid로 변환
     public String emailToUUID(@NonNull Task<DataSnapshot> task, String searchEmail){
@@ -125,31 +184,38 @@ public class AppMainActivity extends AppCompatActivity implements View.OnClickLi
         mDatabase.get().addOnCompleteListener(new OnCompleteListener<DataSnapshot>() {
             @Override
             public void onComplete(@NonNull Task<DataSnapshot> task) {
-
                 if (!task.isSuccessful()) {
-                    Log.d("friendsListInsert :", "DB 연동실패");
+                    Log.e("friendsListInsert :", "DB 연동실패");
                 }
                 else {
                     Log.d("friendsListInsert :", "DB 연동성공");
 
+                    // 입력받은 이메일을 통해 UID를 찾는다
                     String searchUID = emailToUUID(task, insertEmail);
+
+                    // 친구목록에 추가를 위한 HashMap
                     HashMap<String, Object> updateMap = new HashMap<>();
+
+                    // friends라는 칼럼이 없다면 내 칼럼 생성 후 UserUID 하단에 친구 추가
                     if(task.getResult().child("friends").getChildrenCount() == 0){
                         updateMap.put(searchUID,true);
                         Log.d("friendsListInsert :", insertEmail+"("+searchUID+") 이 성공적으로 갱신되었습니다.");
                         mFirebase.getReference().child("friends").child(loginUID).setValue(updateMap);
                         return;
                     }
-
+                    // UserUID칼럼이 없다면 생성 후 하단에 친구추가
                     if(task.getResult().child("friends").child(loginUID).getChildrenCount() == 0){
                         updateMap.put(searchUID,true);
                         Log.d("friendsListInsert :", insertEmail+"("+searchUID+") 이 성공적으로 갱신되었습니다.");
                         mFirebase.getReference().child("friends").child(loginUID).setValue(updateMap);
                         return;
                     }
+
+                    // friends칼럼의 모든 값을 가져오는 HashMap
                     HashMap<String, HashMap<String, Object>> friendsMap = (HashMap<String, HashMap<String, Object>>) task.getResult().child("friends").getValue();
                     String[] fuidArray = friendsMap.get(loginUID).keySet().toArray(new String[0]);
                     if(fuidArray.length != 0) {
+                        // 내가 찾은 Uid를 friends의 모든 키 값을 하나씩 비교해서 있으면, 친구사이
                         for (String fuid : fuidArray) {
                             if (searchUID.equals(fuid)) {
                                 Log.d("friendsListInsert :", "해당 유저와 이미 친구 사이입니다.");
@@ -157,6 +223,8 @@ public class AppMainActivity extends AppCompatActivity implements View.OnClickLi
                             }
                         }
                     }
+
+                    // 위에서 return으로 종료가 안되면, friends 칼럼 갱신
                     updateMap.put(searchUID, true);
                     mFirebase.getReference().child("friends").child(loginUID).updateChildren(updateMap);
                     Log.d("friendsListInsert :", insertEmail+"("+searchUID+") 이 성공적으로 갱신되었습니다.");
@@ -199,6 +267,7 @@ public class AppMainActivity extends AppCompatActivity implements View.OnClickLi
         Log.d("method :", "getSearchUser 메소드 종료");
     }
     public void getUserList(){
+        tempList = new ArrayList<>();
         Log.d("method :", "getUserList 메소드 실행");
         mDatabase = mFirebase.getReference();
         mDatabase.addValueEventListener(new ValueEventListener() {
@@ -210,6 +279,7 @@ public class AppMainActivity extends AppCompatActivity implements View.OnClickLi
                 String friendsKey;
 
                 Log.d("getUserList :", "친구 관계 조회");
+
                 if(dataSnapshot.child("friends").getChildrenCount() == 0) return;
                 for(DataSnapshot postSnapshot: dataSnapshot.child("friends").getChildren()){
                     //친구관계 Key -> (Key -> 친구UID)
@@ -233,6 +303,7 @@ public class AppMainActivity extends AppCompatActivity implements View.OnClickLi
                     int keyIndex = friendsList.indexOf(friendsKey);
                     if(keyIndex != -1){
                         HashMap<String,String> map = (HashMap<String, String>) postSnapshot.getValue();
+                        tempList.add(new User(map.get("name"),map.get("email"), friendsKey));
                         list.add(map.get("name"));
                     }
                 }

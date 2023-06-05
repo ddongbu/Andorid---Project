@@ -3,8 +3,7 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
-    <!--인터넷 사용권한 설정-->
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" /> <!-- 인터넷 사용권한 설정 -->
     <uses-permission android:name="android.permission.INTERNET" />
 
     <application
@@ -18,37 +17,36 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Project_Mobile"
         tools:targetApi="31">
-
         <activity
-            android:name=".AppMainActivity"
-            android:exported="false" />
-
-        <activity
-            android:name=".SignUpActivity"
+            android:name=".Activity.ChatActivity"
             android:exported="false" />
         <activity
-            android:name=".MainActivity"
+            android:name=".Activity.AppMainActivity"
+            android:exported="false" />
+        <activity
+            android:name=".Activity.SignUpActivity"
+            android:exported="false" />
+        <activity
+            android:name=".Activity.MainActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-        </activity>
-
-
-        <!-- 카카오로그인 엑티비티 -->
-
+        </activity> <!-- 카카오로그인 엑티비티 -->
         <activity
             android:name="com.kakao.sdk.auth.AuthCodeHandlerActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
+
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <!-- Redirect URI: "kakao{NATIVE_APP_KEY}://oauth" -->
-                <data android:host="oauth"
-                    android:scheme="kakaob1a7195267bd25ce5f06998bf785f46b"/>
+                <data
+                    android:host="oauth"
+                    android:scheme="kakaob1a7195267bd25ce5f06998bf785f46b" />
             </intent-filter>
         </activity>
     </application>
