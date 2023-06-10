@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+    <style name="TabTextStyle" parent="Widget.Design.TabLayout">
+        <item name="android:textColor">@color/custom_tab_text_color</item>
+    </style>
+</PreferenceScreen>

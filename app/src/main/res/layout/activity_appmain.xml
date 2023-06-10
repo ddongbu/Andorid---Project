@@ -9,7 +9,8 @@
     <TabHost
         android:id="@+id/tabhost"
         android:layout_width="414dp"
-        android:layout_height="731dp">
+        android:layout_height="731dp"
+        >
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -19,9 +20,9 @@
             <TabWidget
                 android:id="@android:id/tabs"
                 android:layout_width="match_parent"
-                android:layout_height="73dp" >
-
-            </TabWidget>
+                android:layout_height="73dp"
+                android:background="#9985D1"
+                app:tabIndicatorColor="#FFFFFF" />
 
             <FrameLayout
                 android:id="@android:id/tabcontent"
@@ -120,9 +121,20 @@
                             app:layout_constraintTop_toTopOf="parent"
                             app:layout_constraintVertical_bias="0.703" />
 
+                        <TextView
+                            android:id="@+id/txtMyName"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            tools:ignore="MissingConstraints" />
+
+                        <TextView
+                            android:id="@+id/txtMyEmail"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            tools:ignore="MissingConstraints" />
+
                     </androidx.constraintlayout.widget.ConstraintLayout>
                 </LinearLayout>
-
             </FrameLayout>
         </LinearLayout>
     </TabHost>

@@ -4,10 +4,16 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.annotation.SuppressLint;
+import android.content.Context;
 import android.content.Intent;
+import android.graphics.Color;
+import android.graphics.Typeface;
 import android.os.Bundle;
 import android.util.Log;
+import android.util.Pair;
+import android.view.Gravity;
 import android.view.View;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
@@ -23,8 +29,13 @@ import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
+import com.inhatc.project_mobile.ChatAdapter;
+import com.inhatc.project_mobile.ChatMessage;
 import com.inhatc.project_mobile.R;
+import com.inhatc.project_mobile.RoomAdapter;
 import com.inhatc.project_mobile.User;
+
+import org.w3c.dom.Text;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -40,7 +51,10 @@ public class AppMainActivity extends AppCompatActivity implements View.OnClickLi
     private FirebaseDatabase mFirebase;
     private DatabaseReference mDatabase = null;
     private ArrayAdapter<String> adpater;
-
+    private ArrayList<ChatMessage> chatRoomMessage;
+    private RoomAdapter roomAdapter;
+    private TextView txtMyName;
+    private TextView txtMyEmail;
     private EditText edtSearch;
     private Button btnSearch;
     private Button btnFriInsert;
@@ -48,7 +62,6 @@ public class AppMainActivity extends AppCompatActivity implements View.OnClickLi
     private TextView txtSearchName;
     private ListView roomList;
     private String loginUID;
-    private String loginName;
     private List<User> tempList;
     private String roomName;
     @SuppressLint("MissingInflatedId")
@@ -64,32 +77,61 @@ public class AppMainActivity extends AppCompatActivity implements View.OnClickLi
         btnFriInsert.setOnClickListener(this);
         txtSearchName = findViewById(R.id.txtSearchName);
         txtSearchEmail = findViewById(R.id.txtSearchEmail);
+        txtMyName = findViewById(R.id.txtMyName);
+        txtMyEmail = findViewById(R.id.txtMyEmail);
         userList = findViewById(R.id.lstUser);
         roomList = findViewById(R.id.lstRoom);
+
+
+        TextView tab1TextView = new TextView(this);
+        tab1TextView.setText("친구목록");
+        tab1TextView.setTextColor(Color.WHITE); // Set the desired text color
+        tab1TextView.setGravity(Gravity.CENTER); // Align the text to the center
+        tab1TextView.setTypeface(null, Typeface.BOLD); // Set the font to bold
+
+        TextView tab2TextView = new TextView(this);
+        tab2TextView.setText("메시지");
+        tab2TextView.setTextColor(Color.WHITE); // Set the desired text color
+        tab2TextView.setGravity(Gravity.CENTER); // Align the text to the center
+        tab2TextView.setTypeface(null, Typeface.BOLD); // Set the font to bold
+
+        TextView tab3TextView = new TextView(this);
+        tab3TextView.setText("친구추가");
+        tab3TextView.setTextColor(Color.WHITE);
+        tab3TextView.setGravity(Gravity.CENTER); // Align the text to the center
+        tab3TextView.setTypeface(null, Typeface.BOLD); // Set the font to bold
 
         tabHost = (TabHost)findViewById(R.id.tabhost);
         tabHost.setup();
 
-        tabSpec = tabHost.newTabSpec("친구목록").setIndicator("친구목록").setContent(R.id.tab1);
+        tabSpec = tabHost.newTabSpec("친구목록").setIndicator(tab1TextView).setContent(R.id.tab1);
         tabHost.addTab(tabSpec);
 
-        tabSpec = tabHost.newTabSpec("메시지").setIndicator("메시지").setContent(R.id.tab2);
+        tabSpec = tabHost.newTabSpec("메시지").setIndicator(tab2TextView).setContent(R.id.tab2);
         tabHost.addTab(tabSpec);
 
-        tabSpec = tabHost.newTabSpec("친구추가").setIndicator("친구추가").setContent(R.id.tab3);
+        tabSpec = tabHost.newTabSpec("친구추가").setIndicator(tab3TextView).setContent(R.id.tab3);
         tabHost.addTab(tabSpec);
 
         tabHost.setCurrentTab(0);
+
         mFirebase = FirebaseDatabase.getInstance();
 
         Bundle extras = getIntent().getExtras();
+
         if (extras != null) {
             // 전달된 데이터 가져오기
             loginUID = extras.getString("UID");
         }
 
+        chatRoomMessage = new ArrayList<>();
+        roomAdapter = new RoomAdapter(this, chatRoomMessage);
+        roomList.setAdapter(roomAdapter);
+
         //유저 목록 출력
         getUserList();
+        //채팅방 목록 출력
+        getChatRoomList();
 
         userList.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
@@ -98,15 +140,38 @@ public class AppMainActivity extends AppCompatActivity implements View.OnClickLi
                 isChatRoom(tempList.get(position).getUid());
             }
         });
+
+        roomList.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                String[] info = chatRoomMessage.get(position).getUid().split("@");
+                // 0 -> otherKey | 1 -> roomKey | 2 -> otherName
+                roomName = info[2];
+                goChatRoom(info[0], info[1]);
+            }
+        });
     }
+    @Override
+    protected void onResume() {
+        super.onResume();
 
+        //채팅방에서 뒤로 갔을때 채팅방목록 리스트 갱신
+        chatRoomMessage = new ArrayList<>();
+        roomAdapter = new RoomAdapter(this, chatRoomMessage);
+        roomList.setAdapter(roomAdapter);
+        getChatRoomList();
 
+        // 액티비티 재실행과 관련된 로직을 여기에 작성합니다.
+        // 예를 들면 데이터 업데이트, 화면 갱신 등의 작업을 수행할 수 있습니다.
+    }
     @Override
     public void onClick(View v){
         if(v == btnSearch){
+            //해당 user 찾는 메소드
             getSearchUser(edtSearch.getText().toString());
         }
         if(v == btnFriInsert){
+            //친구 추가 메소드
             friendsListInsert(txtSearchEmail.getText().toString());
         }
     }
@@ -242,11 +307,10 @@ public class AppMainActivity extends AppCompatActivity implements View.OnClickLi
             @Override
             public void onComplete(@NonNull Task<DataSnapshot> task) {
                 if (!task.isSuccessful()) {
-                    System.out.println("실패");
-                    Log.d("getSearchUser :", "DB 연동실패");
+                    Log.e("getSearchUser :", "DB 연동실패");
                 }
                 else {
-                    Log.d("getSearchUser :", "DB 연동성공");
+                    Log.e("getSearchUser :", "DB 연동성공");
                     String searchUID = emailToUUID(task, searchEmail);
                     if(searchUID == null){
                         txtSearchEmail.setText("");
@@ -260,13 +324,15 @@ public class AppMainActivity extends AppCompatActivity implements View.OnClickLi
                     txtSearchName.setText(userMap.get(searchUID).get("name").toString());
                     txtSearchEmail.setText(userMap.get(searchUID).get("email").toString());
                     btnFriInsert.setVisibility(View.VISIBLE);
+                    InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+                    imm.hideSoftInputFromWindow(txtSearchEmail.getWindowToken(), 0);
                     Log.d("getSearchUser :", "검색결과(name:"+userMap.get(searchUID).get("name")+"|email:"+userMap.get(searchUID).get("email")+")");
                 }
             }
         });
         Log.d("method :", "getSearchUser 메소드 종료");
     }
-    public void getUserList(){
+    public void getUserList() {
         tempList = new ArrayList<>();
         Log.d("method :", "getUserList 메소드 실행");
         mDatabase = mFirebase.getReference();
@@ -280,33 +346,41 @@ public class AppMainActivity extends AppCompatActivity implements View.OnClickLi
 
                 Log.d("getUserList :", "친구 관계 조회");
 
-                if(dataSnapshot.child("friends").getChildrenCount() == 0) return;
-                for(DataSnapshot postSnapshot: dataSnapshot.child("friends").getChildren()){
+                if (dataSnapshot.child("friends").getChildrenCount() == 0) return;
+                for (DataSnapshot postSnapshot : dataSnapshot.child("friends").getChildren()) {
                     //친구관계 Key -> (Key -> 친구UID)
                     friendsKey = postSnapshot.getKey().trim();
 
                     Map<String, Boolean> map = (HashMap<String, Boolean>) postSnapshot.getValue();
                     String[] friendsUID = map.keySet().toArray(new String[0]);
+
                     //로그인한 사람 UID랑 똑같은 키를 찾아서 저장
-                    if(friendsKey.equals(loginUID)){
-                        for(String uid : friendsUID){
+                    if (friendsKey.equals(loginUID)) {
+                        for (String uid : friendsUID) {
+                            //현재 친구인 uid들을 리스트에 저장
                             friendsList.add(uid);
                         }
                     }
                 }
 
                 Log.d("getUserList :", "친구 리스트 구현");
+
                 //친구목록
-                if(friendsList.size() == 0) return;
-                for(DataSnapshot postSnapshot: dataSnapshot.child("users").getChildren()){
+                if (friendsList.size() == 0) return;
+                for (DataSnapshot postSnapshot : dataSnapshot.child("users").getChildren()) {
                     friendsKey = postSnapshot.getKey();
+
                     int keyIndex = friendsList.indexOf(friendsKey);
-                    if(keyIndex != -1){
-                        HashMap<String,String> map = (HashMap<String, String>) postSnapshot.getValue();
-                        tempList.add(new User(map.get("name"),map.get("email"), friendsKey));
-                        list.add(map.get("name"));
+                    if (keyIndex != -1) {
+                        HashMap<String, String> map = (HashMap<String, String>) postSnapshot.getValue();
+                        tempList.add(new User(map.get("name"), map.get("email"), friendsKey));
+                        list.add(map.get("name")+"("+map.get("email")+")");
                     }
                 }
+
+                
+
+
                 adpater = new ArrayAdapter<String>(AppMainActivity.this, android.R.layout.simple_list_item_1, list);
                 userList.setAdapter(adpater);
             }
@@ -319,5 +393,58 @@ public class AppMainActivity extends AppCompatActivity implements View.OnClickLi
         Log.d("method :", "getUserList 메소드 종료");
     }
 
+
+    public void getChatRoomList(){
+        // 현재 사용자가 포함된 채팅방을 찾기
+        mDatabase = mFirebase.getReference();
+        mDatabase.get().addOnCompleteListener(new OnCompleteListener<DataSnapshot>() {
+            @Override
+            public void onComplete(@NonNull Task<DataSnapshot> task) {
+                if(!task.isSuccessful()){
+                    Log.e("getChatRoomList() :", "DB 연동실패");
+                }else{
+                    Log.e("getChatRoomList() :", "DB 연동성공");
+
+                    //현재 채팅방 목록을 모두 저장한다.
+                    HashMap<String, String> chatRoomList = (HashMap<String, String>) task.getResult().child("chatRoom").child("chatRooms").getValue();
+                    String[] chatRoomKeys = chatRoomList.keySet().toArray(new String[0]);
+
+                    for(String key : chatRoomKeys){
+                        //채팅방이름에 사용자의 UID가 포함되어있다면
+                        if(key.contains(loginUID)){
+                            //해당 키가 없다면 종료
+                            if(!task.getResult().child("lastmessage").hasChild(chatRoomList.get(key))) continue;
+
+                            // 채팅방에서 상대방의 키랑 이름을 가져옴
+                            String targetUserKey = key.replace("users", "").replace(loginUID, "").replace("@", "");
+                            String targetUserName = task.getResult().child("users").child(targetUserKey).child("name").getValue().toString();
+
+                            // 리스트뷰에 검증용 myUserName
+                            String myUserName = task.getResult().child("users").child(loginUID).child("name").getValue().toString();
+
+                            // 해당방의 마지막채팅 정보를 가져옴
+                            ChatMessage chatMessage = task.getResult().child("lastmessage").child(chatRoomList.get(key)).getValue(ChatMessage.class);
+                            String checkName = myUserName.equals(chatMessage.getName()) ? "같음" : "다름";
+
+                            // 추후 검증용
+                            // checkName => RoomAdapter에서 textView 메세지 세팅용
+                            // targetUserName => Roomadapter에서 대화방 이름
+                            chatMessage.setName(checkName+"="+targetUserName);
+
+                            // targetUserKey => 대화방 클릭시 상대방 키 전달용
+                            // chatRoomList.get(key) => 대화방 클릭시 룸키 전달용
+                            // targetUserName => 대화방 클릭시 방 제목 전달용
+                            chatMessage.setUid(targetUserKey+"@"+chatRoomList.get(key)+"@"+targetUserName);
+
+                            // listView 업데이트
+                            chatRoomMessage.add(chatMessage);
+                            roomAdapter.notifyDataSetChanged();
+                        }
+                    }
+                }
+            }
+        });
+        // 그 채팅방 RoomKey로 마지막 메세지 찾아오기
+    }
 
 }

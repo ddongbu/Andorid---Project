@@ -8,6 +8,16 @@
     tools:layout_editor_absoluteX="1dp"
     tools:layout_editor_absoluteY="-176dp">
 
+    <ImageView
+        android:id="@+id/main_image"
+        android:layout_width="326dp"
+        android:layout_height="139dp"
+        android:layout_marginStart="40dp"
+        android:layout_marginBottom="464dp"
+        android:src="@drawable/img_main"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        tools:ignore="MissingConstraints" />
 
     <ImageView
         android:id="@+id/captchaImageView"
