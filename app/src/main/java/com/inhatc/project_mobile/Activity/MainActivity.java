@@ -136,7 +136,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             loginDB(userID, userPwd);
 
             //액티비티 전환
-            Toast.makeText(this,edtUserID.getText().toString()+"님 반갑습니다.",Toast.LENGTH_SHORT).show();
+            //Toast.makeText(this,edtUserID.getText().toString()+"님 반갑습니다.",Toast.LENGTH_SHORT).show();
         }
 
         if(v == btnSignUpLoad) {

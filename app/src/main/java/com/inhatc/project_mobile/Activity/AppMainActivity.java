@@ -21,6 +21,7 @@ import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.TabHost;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
@@ -131,7 +132,7 @@ public class AppMainActivity extends AppCompatActivity implements View.OnClickLi
         //유저 목록 출력
         getUserList();
         //채팅방 목록 출력
-        getChatRoomList();
+//        getChatRoomList();
 
         userList.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
@@ -154,7 +155,6 @@ public class AppMainActivity extends AppCompatActivity implements View.OnClickLi
     @Override
     protected void onResume() {
         super.onResume();
-
         //채팅방에서 뒤로 갔을때 채팅방목록 리스트 갱신
         chatRoomMessage = new ArrayList<>();
         roomAdapter = new RoomAdapter(this, chatRoomMessage);
@@ -284,6 +284,7 @@ public class AppMainActivity extends AppCompatActivity implements View.OnClickLi
                         for (String fuid : fuidArray) {
                             if (searchUID.equals(fuid)) {
                                 Log.d("friendsListInsert :", "해당 유저와 이미 친구 사이입니다.");
+                                Toast.makeText(AppMainActivity.this, "해당 유저와 이미 친구입니다.", Toast.LENGTH_SHORT).show();
                                 return;
                             }
                         }
@@ -293,6 +294,10 @@ public class AppMainActivity extends AppCompatActivity implements View.OnClickLi
                     updateMap.put(searchUID, true);
                     mFirebase.getReference().child("friends").child(loginUID).updateChildren(updateMap);
                     Log.d("friendsListInsert :", insertEmail+"("+searchUID+") 이 성공적으로 갱신되었습니다.");
+                    Toast.makeText(AppMainActivity.this, "친구추가 완료!", Toast.LENGTH_SHORT).show();
+                    txtSearchEmail.setVisibility(View.INVISIBLE);
+                    txtSearchName.setVisibility(View.INVISIBLE);
+                    edtSearch.setText("");
                 }
             }
         });
@@ -317,12 +322,15 @@ public class AppMainActivity extends AppCompatActivity implements View.OnClickLi
                         txtSearchName.setText("");
                         btnFriInsert.setVisibility(View.INVISIBLE);
                         Log.d("getSearchUser :", "검색결과가 없습니다.");
+                        Toast.makeText(AppMainActivity.this, "검색결과가 없습니다.", Toast.LENGTH_SHORT).show();
                         return;
                     }
 
                     HashMap<String, HashMap<String, Object>> userMap = (HashMap<String, HashMap<String, Object>>) task.getResult().child("users").getValue();
                     txtSearchName.setText(userMap.get(searchUID).get("name").toString());
                     txtSearchEmail.setText(userMap.get(searchUID).get("email").toString());
+                    txtSearchEmail.setVisibility(View.VISIBLE);
+                    txtSearchName.setVisibility(View.VISIBLE);
                     btnFriInsert.setVisibility(View.VISIBLE);
                     InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
                     imm.hideSoftInputFromWindow(txtSearchEmail.getWindowToken(), 0);
@@ -378,7 +386,7 @@ public class AppMainActivity extends AppCompatActivity implements View.OnClickLi
                     }
                 }
 
-                
+
 
 
                 adpater = new ArrayAdapter<String>(AppMainActivity.this, android.R.layout.simple_list_item_1, list);
